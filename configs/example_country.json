@@ -1,0 +1,73 @@
+{
+  "country_code": "us",
+  "country_name": "United States",
+  "cities": [
+    "Beverly Hills California USA",
+    "Scottsdale Arizona USA",
+    "Naples Florida USA"
+  ],
+  "niche_keywords": {
+    "builders": [
+      "",
+      "custom home builder",
+      "residential builder near me",
+      "emergency builder"
+    ],
+    "electricians": [
+      "",
+      "licensed electrician",
+      "emergency electrician near me",
+      "residential electrician"
+    ],
+    "plumbers": [
+      "",
+      "licensed plumber",
+      "emergency plumber near me",
+      "residential plumbing service"
+    ],
+    "roofers": [
+      "",
+      "roofing contractor",
+      "emergency roof repair near me",
+      "residential roofer"
+    ],
+    "hvac": [
+      "",
+      "HVAC contractor",
+      "emergency HVAC service near me",
+      "residential heating and cooling"
+    ],
+    "painters": [
+      "",
+      "house painter",
+      "interior painter",
+      "exterior painting contractor"
+    ],
+    "landscapers": [
+      "",
+      "landscaping company",
+      "lawn care service",
+      "landscape contractor"
+    ],
+    "pest_control": [
+      "",
+      "pest control",
+      "exterminator",
+      "pest exterminator"
+    ],
+    "barbershops": [
+      "",
+      "barbershop",
+      "men's barber",
+      "high end barbershop"
+    ]
+  },
+  "max_results_per_search": 60,
+  "generate_email_for_priorities": ["A", "B"],
+  "default_city_batch_size": 3,
+  "master_file": "masters/us_master.txt",
+  "progress_file": "state/us_progress.json",
+  "output_dir": "outputs/us",
+  "export_ab_only_to_dropbox": true,
+  "dropbox_ab_base_dir": "~/Dropbox/leads_ab"
+}

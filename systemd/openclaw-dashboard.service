@@ -1,0 +1,28 @@
+; ─────────────────────────────────────────────────────────────────────────────
+;  Systemd service template for the Agentlyfe Dashboard
+;
+;  Before installing, replace REPLACE_WITH_INSTALL_PATH with the absolute path
+;  to your agentlyfe-system clone (e.g. /home/yourname/agentlyfe-system).
+;
+;  Install:
+;    sudo cp systemd/openclaw-dashboard.service /etc/systemd/system/
+;    sudo systemctl daemon-reload
+;    sudo systemctl enable --now openclaw-dashboard.service
+; ─────────────────────────────────────────────────────────────────────────────
+[Unit]
+Description=Agentlyfe Operations Dashboard
+After=network.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=REPLACE_WITH_INSTALL_PATH
+ExecStart=/usr/bin/python3 REPLACE_WITH_INSTALL_PATH/scripts/dashboard.py
+Restart=always
+RestartSec=5
+StandardOutput=journal
+StandardError=journal
+Environment=PYTHONUNBUFFERED=1
+
+[Install]
+WantedBy=multi-user.target

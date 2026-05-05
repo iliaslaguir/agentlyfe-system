@@ -1,0 +1,16 @@
+{
+  "_comment": "Copy this to business_context.json and fill in your own clients/projects/notes. The morning_briefing.py script reads this file. Never commit your real business_context.json — it is in .gitignore.",
+  "clients": {
+    "ExampleClient": {
+      "status": "ACTIVE",
+      "details": "Short description of the client and current state."
+    }
+  },
+  "projects": {
+    "ProjectName": "Brief description of the project and its current status."
+  },
+  "notes": [
+    "Add freeform daily/weekly notes here — the morning briefing reads them."
+  ],
+  "last_updated": "YYYY-MM-DD HH:MM"
+}

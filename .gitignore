@@ -1,0 +1,66 @@
+# ── Secrets (NEVER commit these) ─────────────────────────────────────────────
+configs/secrets/
+*.env
+*.key
+anthropic_key.txt
+
+# ── Personal city configs & lead data ────────────────────────────────────────
+configs/us.json
+configs/uk.json
+configs/au.json
+configs/ca.json
+configs/ie.json
+configs/nz.json
+configs/fi.json
+configs/*.json.bak
+configs/dashboard_state.json
+configs/business_context.json
+configs/us_city_meta.json
+configs/uk_city_meta.json
+
+# ── Personal dev notes ───────────────────────────────────────────────────────
+findings.md
+progress.md
+task_plan.md
+
+# ── Scraped outputs (real business data) ─────────────────────────────────────
+outputs/
+!outputs/.gitkeep
+
+# ── Runtime state ─────────────────────────────────────────────────────────────
+state/
+!state/.gitkeep
+
+# ── Master city lists (personal) ─────────────────────────────────────────────
+masters/
+!masters/.gitkeep
+
+# ── Personal session notes ────────────────────────────────────────────────────
+handoff/
+
+# ── Scripts not for public release ───────────────────────────────────────────
+scripts/enrich_existing_ab_csv.py
+
+# ── Python cache ─────────────────────────────────────────────────────────────
+__pycache__/
+scripts/__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.pycache
+
+# ── Backup files ─────────────────────────────────────────────────────────────
+*.bak
+*.save
+*.orig
+
+# ── Claude Code local settings ───────────────────────────────────────────────
+.claude/
+
+# ── OS / editor ──────────────────────────────────────────────────────────────
+.DS_Store
+.vscode/
+.idea/
+*.log
+/tmp/
+inputs/

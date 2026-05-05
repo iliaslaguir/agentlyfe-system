@@ -1,0 +1,8 @@
+{
+  "_comment": "Copy this to <country>_city_meta.json (e.g. us_city_meta.json) to attach metadata to cities — used for timezone-aware call sorting and city tier targeting. Format: {city_name: {tier, tz, metro}}.",
+  "cities": {
+    "Beverly Hills California USA": {"tier": "S", "tz": "America/Los_Angeles", "metro": "LA"},
+    "Scottsdale Arizona USA":       {"tier": "A", "tz": "America/Phoenix",     "metro": "Phoenix"},
+    "Naples Florida USA":           {"tier": "A", "tz": "America/New_York",    "metro": "Naples"}
+  }
+}
