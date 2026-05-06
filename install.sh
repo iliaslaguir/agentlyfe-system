@@ -7,9 +7,10 @@ set -e
 
 # When piped through `curl ... | bash`, stdin is the script — `read` would
 # eat script lines instead of waiting for the user. Re-attach stdin to the
-# user's terminal so prompts work.
-if [ ! -t 0 ] && [ -e /dev/tty ]; then
-  exec < /dev/tty
+# user's terminal so prompts work. The redirect itself can fail in
+# sandboxed shells with no controlling terminal — swallow that error.
+if [ ! -t 0 ]; then
+  exec < /dev/tty 2>/dev/null || true
 fi
 
 # After any redirect, confirm we actually have an interactive terminal.

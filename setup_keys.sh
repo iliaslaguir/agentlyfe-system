@@ -5,9 +5,10 @@
 # ─────────────────────────────────────────────────────────────────────────────
 set -e
 
-# Re-attach stdin to terminal when piped through `curl ... | bash`
-if [ ! -t 0 ] && [ -e /dev/tty ]; then
-  exec < /dev/tty
+# Re-attach stdin to terminal when piped through `curl ... | bash`.
+# Swallow the redirect error if there's no controlling terminal.
+if [ ! -t 0 ]; then
+  exec < /dev/tty 2>/dev/null || true
 fi
 
 # Bail out cleanly if there's still no real terminal — running without
