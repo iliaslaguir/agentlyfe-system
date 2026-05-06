@@ -110,8 +110,19 @@ def run_ops(command: str) -> str:
         return f"❌ Failed: {e}"
 
 # ── HELP TEXT ─────────────────────────────────────────────
-VALID_COUNTRIES = {"uk", "us", "au", "ca", "ie", "nz", "fi"}
-VALID_NICHES    = {"builders", "electricians", "plumbers", "roofers", "hvac", "painters", "landscapers", "pest_control", "barbershops"}
+import sys as _sys
+from pathlib import Path as _Path
+_sys.path.insert(0, str(_Path(__file__).resolve().parent))
+from _niches import niches as _load_niches, countries as _load_countries
+
+class _DynSet:
+    def __init__(self, loader, seed=None):
+        self._loader = loader; self._seed = set(seed) if seed else set()
+    def __contains__(self, item): return item in (self._loader() | self._seed)
+    def __iter__(self): return iter(self._loader() | self._seed)
+
+VALID_COUNTRIES = _DynSet(_load_countries, {"uk", "us", "au", "ca", "ie", "nz", "fi"})
+VALID_NICHES    = _DynSet(_load_niches)
 
 HELP = """⬡ <b>COMMAND BOT — OPENCLAW CONTROL</b>
 

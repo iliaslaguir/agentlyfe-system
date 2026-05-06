@@ -10,8 +10,14 @@ DROPBOX_AB = Path.home() / "Dropbox" / "leads_ab"
 SYNC_SCRIPT = ROOT / "scripts" / "sync_ab_to_notion.py"
 SYNC_LOG = ROOT / "state" / "notion_sync_log.json"
 
-COUNTRIES = {"uk", "us", "au", "ca", "ie", "nz", "fi"}
-NICHES = {"builders", "electricians", "plumbers", "roofers", "hvac", "painters", "landscapers", "pest_control", "barbershops"}
+import sys as _sys
+_sys.path.insert(0, str(ROOT / "scripts"))
+from _niches import niches as _load_niches, countries as _load_countries
+
+# Resolved at startup — argparse needs concrete choices. If users add a new
+# config later, restart the script to pick it up.
+COUNTRIES = sorted((_load_countries() | {"uk", "us", "au", "ca", "ie", "nz", "fi"}))
+NICHES = sorted(_load_niches())
 
 
 def load_sync_log() -> set:
@@ -88,8 +94,8 @@ def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--all", action="store_true", help="Sync all A/B CSV files")
     parser.add_argument("--latest", action="store_true", help="Sync only the newest matching file")
-    parser.add_argument("--country", choices=sorted(COUNTRIES))
-    parser.add_argument("--niche", choices=sorted(NICHES))
+    parser.add_argument("--country", choices=COUNTRIES or None)
+    parser.add_argument("--niche", choices=NICHES or None)
     args = parser.parse_args()
 
     if not args.all and not args.latest and not args.niche and not args.country:

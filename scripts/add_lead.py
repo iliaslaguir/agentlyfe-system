@@ -71,15 +71,30 @@ def check_website(url: str) -> dict:
 
 
 # ── CLAUDE FIELD GENERATOR ────────────────────────────────
-SYSTEM = """You are filling in a lead database for Agentlyfe, a digital marketing agency.
+def _load_offer_context() -> str:
+    """Pull offer + pitch angle from business_context.json (set by config_generator)."""
+    ctx_file = ROOT / "configs" / "business_context.json"
+    try:
+        ctx = json.loads(ctx_file.read_text())
+        offer = ctx.get("offer", "").strip()
+        pitch = ctx.get("pitch_angle", "").strip()
+        target = ctx.get("target_profile", "").strip()
+        parts = []
+        if offer:  parts.append(f"Offer: {offer}")
+        if target: parts.append(f"Target buyer: {target}")
+        if pitch:  parts.append(f"Pitch angle: {pitch}")
+        return "\n".join(parts) if parts else ""
+    except Exception:
+        return ""
 
-The agency's offer: Free website build for small trade businesses → €500 acceptance fee → monthly marketing retainer.
-Target: Small owner-operated trade businesses with no website or bad website.
+SYSTEM = f"""You are filling in a lead database for a lead-generation system.
 
-Priority scoring:
-- A = No website (easiest pitch, guaranteed interest)
-- B = Bad website (score under 60, easy to show value)
-- C = Decent website (score 60+, harder pitch)
+{_load_offer_context() or "Offer: Free website build for small trade businesses then a monthly marketing retainer."}
+
+Priority scoring (gap-based — bigger gap = easier pitch):
+- A = Major gap vs what we sell (e.g. no website / no AI receptionist / no current solution) — easiest pitch
+- B = Weak / outdated current solution — easy to show value
+- C = Has a decent current solution — harder pitch
 
 Outreach channel logic:
 - If phone number available → "Call" (highest conversion)
@@ -143,7 +158,7 @@ Generate all fields for this lead. Return ONLY this JSON:
   "email_discovery_stage": "Not Needed|Pending",
   "issue": "{website_data['issue']}",
   "website_score": {website_data['score']},
-  "email_draft": "Subject: [compelling subject line]\\n\\n[2-3 sentence cold email pitching free website or better website. Be specific to their niche. End with a friendly sign-off using the operator's first name.]",
+  "email_draft": "Subject: [compelling subject line]\\n\\n[2-3 sentence cold email pitching the OFFER above to this specific lead. Reference their niche and city. End with a friendly sign-off.]",
   "delivery_message": "Short 1-line SMS/WhatsApp message to introduce yourself",
   "internal_notes": "Brief note about this lead and why they are a good prospect"
 }}"""

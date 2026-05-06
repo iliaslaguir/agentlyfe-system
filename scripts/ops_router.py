@@ -11,8 +11,25 @@ CONFIGS = ROOT / "configs"
 CONTEXT_FILE = CONFIGS / "business_context.json"
 ANTHROPIC_KEY_F = CONFIGS / "secrets" / "anthropic_key.txt"
 
-COUNTRIES = {"uk", "us", "au", "ca", "ie", "nz", "fi"}
-NICHES    = {"builders", "electricians", "plumbers", "roofers", "hvac", "painters", "landscapers", "pest_control", "barbershops"}
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from _niches import niches as _load_niches, countries as _load_countries
+
+# Static seed list — combined with whatever the user has actually generated configs for.
+_SEED_COUNTRIES = {"uk", "us", "au", "ca", "ie", "nz", "fi"}
+
+class _DynamicSet:
+    """Acts like a set but re-reads the configs/ directory on every check, so new
+    niches/countries become valid the moment their config file appears."""
+    def __init__(self, loader, seed=None):
+        self._loader = loader
+        self._seed = set(seed) if seed else set()
+    def __contains__(self, item):
+        return item in (self._loader() | self._seed)
+    def __iter__(self):
+        return iter(self._loader() | self._seed)
+
+COUNTRIES = _DynamicSet(_load_countries, _SEED_COUNTRIES)
+NICHES    = _DynamicSet(_load_niches)
 
 
 def config_path(country: str) -> str:

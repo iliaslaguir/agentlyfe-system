@@ -166,30 +166,63 @@ GOOGLE_PLACES_API_KEY=${GOOGLE_KEY}
 EOF
 echo "✅  Secrets saved to configs/secrets/"
 
-# ── 7. Country config generation ─────────────────────────────────────────────
+# ── 7. Offer + country config generation ────────────────────────────────────
+echo ""
+echo "╔══════════════════════════════════════════════════════╗"
+echo "║              🎯  What are you selling?               ║"
+echo "╚══════════════════════════════════════════════════════╝"
+echo ""
+echo "Tell Claude what your offer is. It will pick the ideal target verticals,"
+echo "cities, search keywords and pitch angle for that specific offer."
+echo ""
+echo "Examples:"
+echo "  - AI receptionists for dental clinics"
+echo "  - Free website + monthly marketing for local trades"
+echo "  - Lead-gen system for solar installers"
+echo "  - Chiropractor-specific Google Ads management"
+echo ""
+prompt "What are you selling? " OFFER_INPUT
+if [ -z "$OFFER_INPUT" ]; then
+  OFFER_INPUT="Free website build for small local trade businesses with no/bad website, then a monthly marketing retainer."
+  echo "   (using default trade-business offer)"
+fi
+
 echo ""
 echo "╔══════════════════════════════════════════════════════╗"
 echo "║              🌍  Country Setup                       ║"
 echo "╚══════════════════════════════════════════════════════╝"
 echo ""
-echo "Which country do you want to scrape leads in?"
-echo "Examples: us, uk, au, ca, ie, nz, germany, south africa, india"
+echo "Which country do you want to find leads in?"
+echo "Any country works — examples: us, uk, au, ca, ie, nz, germany, spain, india"
 echo ""
 prompt "Country [default: us]: " COUNTRY_INPUT
 COUNTRY_INPUT=$(echo "${COUNTRY_INPUT:-us}" | tr '[:upper:]' '[:lower:]')
 
 if [ "${ANTHROPIC_KEY:0:7}" = "sk-ant-" ]; then
   echo ""
-  echo "🤖  Generating $COUNTRY_INPUT config with Claude..."
-  echo "    (This calls the Anthropic API to pick best cities + keywords)"
+  echo "🤖  Asking Claude to design the lead-gen plan for your offer..."
+  echo "    Country: $COUNTRY_INPUT"
   echo ""
-  $PYTHON scripts/config_generator.py "$COUNTRY_INPUT" && \
-    echo "✅  Config generated for $COUNTRY_INPUT" || \
-    echo "⚠️   Config generation failed — run manually: python3 scripts/config_generator.py $COUNTRY_INPUT"
+  $PYTHON scripts/config_generator.py "$COUNTRY_INPUT" "$OFFER_INPUT" && \
+    GEN_OK=1 || GEN_OK=0
+
+  if [ "$GEN_OK" = "1" ]; then
+    echo ""
+    if [ "$NONINTERACTIVE" = "0" ]; then
+      prompt "Looks good? Press Enter to keep, or type 'redo' to regenerate: " CONFIRM
+      while [ "$CONFIRM" = "redo" ]; do
+        $PYTHON scripts/config_generator.py "$COUNTRY_INPUT" "$OFFER_INPUT"
+        prompt "Looks good? Press Enter to keep, or type 'redo' to regenerate: " CONFIRM
+      done
+    fi
+  else
+    echo "⚠️   Config generation failed."
+    echo "     Run manually: python3 scripts/config_generator.py $COUNTRY_INPUT \"$OFFER_INPUT\""
+  fi
 else
   echo ""
   echo "⚠️   Skipping config generation (no valid Anthropic key)."
-  echo "     Run later: python3 scripts/config_generator.py $COUNTRY_INPUT"
+  echo "     After adding your key, run: python3 scripts/config_generator.py $COUNTRY_INPUT \"$OFFER_INPUT\""
 fi
 
 # ── 8. Done ───────────────────────────────────────────────────────────────────
@@ -198,12 +231,12 @@ echo "╔═══════════════════════�
 echo "║            ✅  Setup complete!                       ║"
 echo "╚══════════════════════════════════════════════════════╝"
 echo ""
-echo "Your first scrape:"
-echo "  cd $INSTALL_DIR"
-echo "  python3 scripts/ops_router.py scrape $COUNTRY_INPUT roofers"
+echo "Your config is at: $INSTALL_DIR/configs/$COUNTRY_INPUT.json"
+echo "Your offer + pitch angle are saved in: configs/business_context.json"
 echo ""
-echo "Sync to Notion (after scraping):"
-echo "  python3 scripts/ops_router.py sync roofers $COUNTRY_INPUT notion"
+echo "Run a scrape (use any vertical name from the config):"
+echo "  cd $INSTALL_DIR"
+echo "  python3 scripts/ops_router.py scrape $COUNTRY_INPUT <vertical_name>"
 echo ""
 echo "See README.md for the full command reference."
 echo ""
