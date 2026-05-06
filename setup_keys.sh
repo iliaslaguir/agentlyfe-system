@@ -10,6 +10,18 @@ if [ ! -t 0 ] && [ -e /dev/tty ]; then
   exec < /dev/tty
 fi
 
+# Bail out cleanly if there's still no real terminal — running without
+# a TTY would silently produce a config full of placeholders.
+if [ ! -t 0 ]; then
+  echo "❌  setup_keys.sh needs an interactive terminal."
+  echo "    If you ran this via 'curl | bash' inside a non-TTY shell,"
+  echo "    download it first then run it directly:"
+  echo ""
+  echo "    curl -O https://raw.githubusercontent.com/iliaslaguir/agentlyfe-system/main/setup_keys.sh"
+  echo "    bash setup_keys.sh"
+  exit 1
+fi
+
 SECRETS_DIR="./configs/secrets"
 mkdir -p "$SECRETS_DIR"
 

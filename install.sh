@@ -7,17 +7,34 @@ set -e
 
 # When piped through `curl ... | bash`, stdin is the script — `read` would
 # eat script lines instead of waiting for the user. Re-attach stdin to the
-# user's terminal so prompts work. If no TTY is available (CI etc.), fall
-# back to a non-interactive install with placeholder secrets.
-if [ ! -t 0 ]; then
-  if [ -e /dev/tty ]; then
-    exec < /dev/tty
-  else
-    echo "⚠️   No interactive terminal detected. Running non-interactive install."
-    echo "     You will need to fill in keys manually after install completes."
-    NONINTERACTIVE=1
-  fi
+# user's terminal so prompts work.
+if [ ! -t 0 ] && [ -e /dev/tty ]; then
+  exec < /dev/tty
 fi
+
+# After any redirect, confirm we actually have an interactive terminal.
+# If not (CI, sandboxed shells, etc.), skip prompts entirely and write
+# placeholder secrets — the user can re-run install.sh interactively
+# or hand-edit configs/secrets/ later.
+NONINTERACTIVE=0
+if [ ! -t 0 ]; then
+  echo "⚠️   No interactive terminal detected. Running non-interactive install."
+  echo "     Run install.sh again from a real terminal, or edit"
+  echo "     configs/secrets/ manually after install completes."
+  NONINTERACTIVE=1
+fi
+
+# Helper: prompt-or-skip. Reads into the var name passed as $2, defaults to ""
+# when non-interactive.
+prompt() {
+  local _msg="$1" _var="$2" _val=""
+  if [ "$NONINTERACTIVE" = "1" ]; then
+    eval "$_var=\"\""
+    return
+  fi
+  read -p "$_msg" _val
+  eval "$_var=\"$(echo "$_val" | tr -d '[:space:]')\""
+}
 
 REPO_URL="https://github.com/iliaslaguir/agentlyfe-system.git"
 INSTALL_DIR="$HOME/agentlyfe-system"
@@ -87,18 +104,16 @@ echo "Press Enter to skip optional fields."
 echo ""
 
 # ── 6a. Anthropic API key (required) ─────────────────────────────────────────
+ANTHROPIC_KEY=""
 if [ -f "$SECRETS_DIR/anthropic_key.txt" ] && [ -s "$SECRETS_DIR/anthropic_key.txt" ]; then
   EXISTING=$(cat "$SECRETS_DIR/anthropic_key.txt" | tr -d '[:space:]')
   if [ "${EXISTING:0:7}" = "sk-ant-" ]; then
     echo "✅  Anthropic API key already set."
     ANTHROPIC_KEY="$EXISTING"
-  else
-    read -p "🔑  Anthropic API key (sk-ant-...): " ANTHROPIC_KEY
-    ANTHROPIC_KEY=$(echo "$ANTHROPIC_KEY" | tr -d '[:space:]')
   fi
-else
-  read -p "🔑  Anthropic API key (sk-ant-...): " ANTHROPIC_KEY
-  ANTHROPIC_KEY=$(echo "$ANTHROPIC_KEY" | tr -d '[:space:]')
+fi
+if [ -z "$ANTHROPIC_KEY" ]; then
+  prompt "🔑  Anthropic API key (sk-ant-...): " ANTHROPIC_KEY
 fi
 
 if [ -z "$ANTHROPIC_KEY" ]; then
@@ -112,8 +127,7 @@ echo "✅  Anthropic key saved."
 
 # ── 6b. Google Places API key (required for scraping) ────────────────────────
 echo ""
-read -p "🔑  Google Places API key (required for scraping): " GOOGLE_KEY
-GOOGLE_KEY=$(echo "$GOOGLE_KEY" | tr -d '[:space:]')
+prompt "🔑  Google Places API key (required for scraping): " GOOGLE_KEY
 if [ -z "$GOOGLE_KEY" ]; then
   echo "⚠️   No Google Places key entered. Scraping will not work."
   echo "     Get one at: https://console.cloud.google.com → Places API"
@@ -123,23 +137,21 @@ fi
 # ── 6c. Notion credentials (optional) ────────────────────────────────────────
 echo ""
 echo "Notion integration (optional — needed to sync leads to Notion CRM):"
-read -p "   Notion integration token (secret_...): " NOTION_TOKEN
-NOTION_TOKEN=$(echo "$NOTION_TOKEN" | tr -d '[:space:]')
+prompt "   Notion integration token (secret_...): " NOTION_TOKEN
+NOTION_LEADS_DB_ID=""
+NOTION_DEALS_DB_ID=""
 if [ -n "$NOTION_TOKEN" ]; then
-  read -p "   Notion Leads database ID: " NOTION_LEADS_DB_ID
-  NOTION_LEADS_DB_ID=$(echo "$NOTION_LEADS_DB_ID" | tr -d '[:space:]')
-  read -p "   Notion Deals database ID (optional): " NOTION_DEALS_DB_ID
-  NOTION_DEALS_DB_ID=$(echo "$NOTION_DEALS_DB_ID" | tr -d '[:space:]')
+  prompt "   Notion Leads database ID: " NOTION_LEADS_DB_ID
+  prompt "   Notion Deals database ID (optional): " NOTION_DEALS_DB_ID
 fi
 
 # ── 6d. Telegram bot (optional) ──────────────────────────────────────────────
 echo ""
 echo "Telegram bot (optional — for remote command interface on mobile):"
-read -p "   Telegram bot token: " TELEGRAM_TOKEN
-TELEGRAM_TOKEN=$(echo "$TELEGRAM_TOKEN" | tr -d '[:space:]')
+prompt "   Telegram bot token: " TELEGRAM_TOKEN
+TELEGRAM_CHAT_ID=""
 if [ -n "$TELEGRAM_TOKEN" ]; then
-  read -p "   Telegram chat ID: " TELEGRAM_CHAT_ID
-  TELEGRAM_CHAT_ID=$(echo "$TELEGRAM_CHAT_ID" | tr -d '[:space:]')
+  prompt "   Telegram chat ID: " TELEGRAM_CHAT_ID
 fi
 
 # ── 6e. Write notion.env ─────────────────────────────────────────────────────
@@ -162,8 +174,8 @@ echo ""
 echo "Which country do you want to scrape leads in?"
 echo "Examples: us, uk, au, ca, ie, nz, germany, south africa, india"
 echo ""
-read -p "Country [default: us]: " COUNTRY_INPUT
-COUNTRY_INPUT=$(echo "${COUNTRY_INPUT:-us}" | tr '[:upper:]' '[:lower:]' | tr -d '[:space:]')
+prompt "Country [default: us]: " COUNTRY_INPUT
+COUNTRY_INPUT=$(echo "${COUNTRY_INPUT:-us}" | tr '[:upper:]' '[:lower:]')
 
 if [ "${ANTHROPIC_KEY:0:7}" = "sk-ant-" ]; then
   echo ""
