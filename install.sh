@@ -56,46 +56,127 @@ $PYTHON -m pip install --quiet --upgrade pip
 $PYTHON -m pip install --quiet -r requirements.txt
 echo "✅  Dependencies installed"
 
-# ── 5. Set up secrets ─────────────────────────────────────────────────────────
-SECRETS_DIR="$INSTALL_DIR/configs/secrets"
-
-if [ ! -f "$SECRETS_DIR/notion.env" ]; then
-  cp "$SECRETS_DIR/notion.env.example" "$SECRETS_DIR/notion.env"
-  echo ""
-  echo "🔑  Created configs/secrets/notion.env from template."
-  echo "    → Open it and fill in your API keys before running any script."
-fi
-
-if [ ! -f "$SECRETS_DIR/anthropic_key.txt" ]; then
-  cp "$SECRETS_DIR/anthropic_key.txt.example" "$SECRETS_DIR/anthropic_key.txt"
-  echo "🔑  Created configs/secrets/anthropic_key.txt from template."
-  echo "    → Paste your Anthropic API key into that file."
-fi
-
-# ── 6. Create required directories ────────────────────────────────────────────
+# ── 5. Create required directories ────────────────────────────────────────────
 mkdir -p "$INSTALL_DIR/outputs" "$INSTALL_DIR/state" "$INSTALL_DIR/masters" "$INSTALL_DIR/inputs"
 echo "✅  Directory structure ready"
 
-# ── 7. Done ───────────────────────────────────────────────────────────────────
+# ── 6. Setup wizard ───────────────────────────────────────────────────────────
+SECRETS_DIR="$INSTALL_DIR/configs/secrets"
+
 echo ""
 echo "╔══════════════════════════════════════════════════════╗"
-echo "║            ✅  Installation complete!                ║"
+echo "║              🔑  API Key Setup                       ║"
 echo "╚══════════════════════════════════════════════════════╝"
 echo ""
-echo "Next steps:"
-echo "  1. Fill in your API keys:"
-echo "       $SECRETS_DIR/notion.env"
-echo "       $SECRETS_DIR/anthropic_key.txt"
+echo "You'll need API keys to use the system."
+echo "Press Enter to skip optional fields."
 echo ""
-echo "  2. Generate a country config:"
-echo "       cd $INSTALL_DIR"
-echo "       python3 scripts/config_generator.py us"
+
+# ── 6a. Anthropic API key (required) ─────────────────────────────────────────
+if [ -f "$SECRETS_DIR/anthropic_key.txt" ] && [ -s "$SECRETS_DIR/anthropic_key.txt" ]; then
+  EXISTING=$(cat "$SECRETS_DIR/anthropic_key.txt" | tr -d '[:space:]')
+  if [ "${EXISTING:0:7}" = "sk-ant-" ]; then
+    echo "✅  Anthropic API key already set."
+    ANTHROPIC_KEY="$EXISTING"
+  else
+    read -p "🔑  Anthropic API key (sk-ant-...): " ANTHROPIC_KEY
+    ANTHROPIC_KEY=$(echo "$ANTHROPIC_KEY" | tr -d '[:space:]')
+  fi
+else
+  read -p "🔑  Anthropic API key (sk-ant-...): " ANTHROPIC_KEY
+  ANTHROPIC_KEY=$(echo "$ANTHROPIC_KEY" | tr -d '[:space:]')
+fi
+
+if [ -z "$ANTHROPIC_KEY" ]; then
+  echo "⚠️   No Anthropic key entered. AI features will not work."
+  echo "     Get one at: https://console.anthropic.com"
+  ANTHROPIC_KEY="YOUR_ANTHROPIC_API_KEY_HERE"
+fi
+
+echo "$ANTHROPIC_KEY" > "$SECRETS_DIR/anthropic_key.txt"
+echo "✅  Anthropic key saved."
+
+# ── 6b. Google Places API key (required for scraping) ────────────────────────
 echo ""
-echo "  3. Run your first scrape:"
-echo "       python3 scripts/ops_router.py scrape roofers 3 us"
+read -p "🔑  Google Places API key (required for scraping): " GOOGLE_KEY
+GOOGLE_KEY=$(echo "$GOOGLE_KEY" | tr -d '[:space:]')
+if [ -z "$GOOGLE_KEY" ]; then
+  echo "⚠️   No Google Places key entered. Scraping will not work."
+  echo "     Get one at: https://console.cloud.google.com → Places API"
+  GOOGLE_KEY="YOUR_GOOGLE_PLACES_API_KEY_HERE"
+fi
+
+# ── 6c. Notion credentials (optional) ────────────────────────────────────────
 echo ""
-echo "  4. Sync to Notion:"
-echo "       python3 scripts/ops_router.py sync roofers us notion"
+echo "Notion integration (optional — needed to sync leads to Notion CRM):"
+read -p "   Notion integration token (secret_...): " NOTION_TOKEN
+NOTION_TOKEN=$(echo "$NOTION_TOKEN" | tr -d '[:space:]')
+if [ -n "$NOTION_TOKEN" ]; then
+  read -p "   Notion Leads database ID: " NOTION_LEADS_DB_ID
+  NOTION_LEADS_DB_ID=$(echo "$NOTION_LEADS_DB_ID" | tr -d '[:space:]')
+  read -p "   Notion Deals database ID (optional): " NOTION_DEALS_DB_ID
+  NOTION_DEALS_DB_ID=$(echo "$NOTION_DEALS_DB_ID" | tr -d '[:space:]')
+fi
+
+# ── 6d. Telegram bot (optional) ──────────────────────────────────────────────
 echo ""
-echo "  See README.md for the full guide."
+echo "Telegram bot (optional — for remote command interface on mobile):"
+read -p "   Telegram bot token: " TELEGRAM_TOKEN
+TELEGRAM_TOKEN=$(echo "$TELEGRAM_TOKEN" | tr -d '[:space:]')
+if [ -n "$TELEGRAM_TOKEN" ]; then
+  read -p "   Telegram chat ID: " TELEGRAM_CHAT_ID
+  TELEGRAM_CHAT_ID=$(echo "$TELEGRAM_CHAT_ID" | tr -d '[:space:]')
+fi
+
+# ── 6e. Write notion.env ─────────────────────────────────────────────────────
+cat > "$SECRETS_DIR/notion.env" <<EOF
+NOTION_TOKEN=${NOTION_TOKEN:-YOUR_NOTION_TOKEN_HERE}
+NOTION_LEADS_DB_ID=${NOTION_LEADS_DB_ID:-YOUR_LEADS_DB_ID_HERE}
+NOTION_DEALS_DB_ID=${NOTION_DEALS_DB_ID:-YOUR_DEALS_DB_ID_HERE}
+TELEGRAM_TOKEN=${TELEGRAM_TOKEN:-YOUR_TELEGRAM_BOT_TOKEN_HERE}
+TELEGRAM_CHAT_ID=${TELEGRAM_CHAT_ID:-YOUR_TELEGRAM_CHAT_ID_HERE}
+GOOGLE_PLACES_API_KEY=${GOOGLE_KEY}
+EOF
+echo "✅  Secrets saved to configs/secrets/"
+
+# ── 7. Country config generation ─────────────────────────────────────────────
+echo ""
+echo "╔══════════════════════════════════════════════════════╗"
+echo "║              🌍  Country Setup                       ║"
+echo "╚══════════════════════════════════════════════════════╝"
+echo ""
+echo "Which country do you want to scrape leads in?"
+echo "Examples: us, uk, au, ca, ie, nz, germany, south africa, india"
+echo ""
+read -p "Country [default: us]: " COUNTRY_INPUT
+COUNTRY_INPUT=$(echo "${COUNTRY_INPUT:-us}" | tr '[:upper:]' '[:lower:]' | tr -d '[:space:]')
+
+if [ "${ANTHROPIC_KEY:0:7}" = "sk-ant-" ]; then
+  echo ""
+  echo "🤖  Generating $COUNTRY_INPUT config with Claude..."
+  echo "    (This calls the Anthropic API to pick best cities + keywords)"
+  echo ""
+  $PYTHON scripts/config_generator.py "$COUNTRY_INPUT" && \
+    echo "✅  Config generated for $COUNTRY_INPUT" || \
+    echo "⚠️   Config generation failed — run manually: python3 scripts/config_generator.py $COUNTRY_INPUT"
+else
+  echo ""
+  echo "⚠️   Skipping config generation (no valid Anthropic key)."
+  echo "     Run later: python3 scripts/config_generator.py $COUNTRY_INPUT"
+fi
+
+# ── 8. Done ───────────────────────────────────────────────────────────────────
+echo ""
+echo "╔══════════════════════════════════════════════════════╗"
+echo "║            ✅  Setup complete!                       ║"
+echo "╚══════════════════════════════════════════════════════╝"
+echo ""
+echo "Your first scrape:"
+echo "  cd $INSTALL_DIR"
+echo "  python3 scripts/ops_router.py scrape $COUNTRY_INPUT roofers"
+echo ""
+echo "Sync to Notion (after scraping):"
+echo "  python3 scripts/ops_router.py sync roofers $COUNTRY_INPUT notion"
+echo ""
+echo "See README.md for the full command reference."
 echo ""

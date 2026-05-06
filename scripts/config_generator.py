@@ -29,6 +29,14 @@ COUNTRY_NAMES = {
     "fi": "Finland",
 }
 
+def _resolve_country_name(code: str) -> str:
+    """Return full country name — uses lookup table or title-cases the code itself."""
+    return COUNTRY_NAMES.get(code, code.replace("_", " ").title())
+
+def _resolve_country_suffix(code: str) -> str:
+    """Return the suffix used in Google Places queries (e.g. 'USA', 'UK', 'Germany')."""
+    return COUNTRY_SUFFIXES.get(code, _resolve_country_name(code))
+
 NICHES = ["builders", "electricians", "plumbers", "roofers", "hvac", "painters", "landscapers", "pest_control", "barbershops"]
 
 SYSTEM = """You are a lead generation strategist for a digital marketing agency.
@@ -102,8 +110,8 @@ COUNTRY_SUFFIXES = {
 
 def generate_config_with_claude(country_code: str) -> dict:
     api_key = ANTHROPIC_KEY_F.read_text().strip()
-    country_name = COUNTRY_NAMES[country_code]
-    country_suffix = COUNTRY_SUFFIXES[country_code]
+    country_name = _resolve_country_name(country_code)
+    country_suffix = _resolve_country_suffix(country_code)
 
     prompt = PROMPT_TEMPLATE.format(
         country_code=country_code,
@@ -228,18 +236,9 @@ def print_summary(country_code: str, config: dict) -> None:
 
 
 def generate(country_code: str) -> None:
-    country_code = country_code.lower().strip()
+    country_code = country_code.lower().strip().replace(" ", "_")
 
-    if country_code not in COUNTRY_NAMES:
-        print(f"Unknown country: {country_code}")
-        print(f"Supported: {', '.join(COUNTRY_NAMES.keys())}")
-        sys.exit(1)
-
-    if country_code == "uk":
-        print("UK config already exists and is complete. Skipping.")
-        sys.exit(0)
-
-    print(f"\nGenerating config for {COUNTRY_NAMES[country_code]}...")
+    print(f"\nGenerating config for {_resolve_country_name(country_code)}...")
     print("  Asking Claude for best cities and keywords...")
 
     config = generate_config_with_claude(country_code)
@@ -254,7 +253,7 @@ def generate(country_code: str) -> None:
 
 
 def generate_all() -> None:
-    countries = [c for c in COUNTRY_NAMES.keys() if c != "uk"]
+    countries = list(COUNTRY_NAMES.keys())
     print(f"Generating configs for: {', '.join(countries)}\n")
     for country_code in countries:
         generate(country_code)
