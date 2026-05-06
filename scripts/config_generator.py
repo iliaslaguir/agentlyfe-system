@@ -179,7 +179,7 @@ def init_progress_file(country_code: str, config: dict) -> Path:
 
     progress = {
         "country_code": country_code,
-        "country_name": COUNTRY_NAMES[country_code],
+        "country_name": _resolve_country_name(country_code),
         "last_updated": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
         "niche_progress": niche_progress
     }
