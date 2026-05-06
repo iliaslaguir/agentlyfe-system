@@ -5,6 +5,11 @@
 # ─────────────────────────────────────────────────────────────────────────────
 set -e
 
+# Re-attach stdin to terminal when piped through `curl ... | bash`
+if [ ! -t 0 ] && [ -e /dev/tty ]; then
+  exec < /dev/tty
+fi
+
 SECRETS_DIR="./configs/secrets"
 mkdir -p "$SECRETS_DIR"
 

@@ -5,6 +5,20 @@
 # ─────────────────────────────────────────────────────────────────────────────
 set -e
 
+# When piped through `curl ... | bash`, stdin is the script — `read` would
+# eat script lines instead of waiting for the user. Re-attach stdin to the
+# user's terminal so prompts work. If no TTY is available (CI etc.), fall
+# back to a non-interactive install with placeholder secrets.
+if [ ! -t 0 ]; then
+  if [ -e /dev/tty ]; then
+    exec < /dev/tty
+  else
+    echo "⚠️   No interactive terminal detected. Running non-interactive install."
+    echo "     You will need to fill in keys manually after install completes."
+    NONINTERACTIVE=1
+  fi
+fi
+
 REPO_URL="https://github.com/iliaslaguir/agentlyfe-system.git"
 INSTALL_DIR="$HOME/agentlyfe-system"
 
