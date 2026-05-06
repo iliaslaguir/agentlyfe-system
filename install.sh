@@ -25,26 +25,74 @@ if [ ! -t 0 ]; then
   NONINTERACTIVE=1
 fi
 
-# Helper: prompt-or-skip. Reads into the var name passed as $2, defaults to ""
-# when non-interactive.
+# ── Agentlyfe brand colors (ANSI 256-colour) ─────────────────────────────────
+if [ -t 1 ]; then
+  ORANGE=$'\033[38;5;208m'      # primary brand orange
+  AMBER=$'\033[38;5;214m'       # softer accent
+  DIM=$'\033[2m'
+  BOLD=$'\033[1m'
+  RESET=$'\033[0m'
+  GREEN=$'\033[38;5;42m'
+  RED=$'\033[38;5;203m'
+else
+  ORANGE=""; AMBER=""; DIM=""; BOLD=""; RESET=""; GREEN=""; RED=""
+fi
+
+# Helper: prompt-or-skip for short, whitespace-free input (API keys, IDs).
+# Strips ALL whitespace.
 prompt() {
   local _msg="$1" _var="$2" _val=""
   if [ "$NONINTERACTIVE" = "1" ]; then
     eval "$_var=\"\""
     return
   fi
-  read -p "$_msg" _val
+  read -p "$(printf "%b" "${ORANGE}❯${RESET} ${_msg}")" _val
   eval "$_var=\"$(echo "$_val" | tr -d '[:space:]')\""
+}
+
+# Helper: prompt for free-text input (offer descriptions, names, sentences).
+# Preserves spaces inside the answer, trims only leading/trailing whitespace.
+prompt_text() {
+  local _msg="$1" _var="$2" _val=""
+  if [ "$NONINTERACTIVE" = "1" ]; then
+    eval "$_var=\"\""
+    return
+  fi
+  read -p "$(printf "%b" "${ORANGE}❯${RESET} ${_msg}")" _val
+  # trim only leading/trailing whitespace
+  _val="${_val#"${_val%%[![:space:]]*}"}"
+  _val="${_val%"${_val##*[![:space:]]}"}"
+  eval "$_var=\"\$_val\""
+}
+
+# Section header — orange rule + label
+section() {
+  printf "\n%b%b━━━ %s ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━%b\n\n" "$BOLD" "$ORANGE" "$1" "$RESET"
+}
+
+# Sub-section header — amber accent
+subsection() {
+  printf "%b%s%b\n" "$DIM" "──────────────────────────────────────────────────────" "$RESET"
+  printf " %b%s%b\n" "$AMBER" "$1" "$RESET"
+  printf "%b%s%b\n" "$DIM" "──────────────────────────────────────────────────────" "$RESET"
 }
 
 REPO_URL="https://github.com/iliaslaguir/agentlyfe-system.git"
 INSTALL_DIR="$HOME/agentlyfe-system"
 
-echo ""
-echo "╔══════════════════════════════════════════════════════╗"
-echo "║         Agentlyfe System — Installing...             ║"
-echo "╚══════════════════════════════════════════════════════╝"
-echo ""
+# ── Logo banner ──────────────────────────────────────────────────────────────
+printf "\n"
+printf "%b" "$ORANGE"
+cat <<'BANNER'
+   █████  ██████  ███████ ███    ██ ████████ ██   ██   ██ ███████ ███████
+  ██   ██ ██      ██      ████   ██    ██    ██    ██ ██  ██      ██
+  ███████ ██  ███ █████   ██ ██  ██    ██    ██     ███   █████   █████
+  ██   ██ ██   ██ ██      ██  ██ ██    ██    ██      ██   ██      ██
+  ██   ██  ██████ ███████ ██   ████    ██    ██████  ██   ██      ███████
+BANNER
+printf "%b" "$RESET"
+printf "  %b%bLead Generation System Installer%b\n" "$DIM" "$AMBER" "$RESET"
+printf "  %sgithub.com/iliaslaguir/agentlyfe-system%s\n\n" "$DIM" "$RESET"
 
 # ── 1. Check Python version ───────────────────────────────────────────────────
 PYTHON=$(command -v python3 || true)
@@ -95,20 +143,14 @@ echo "✅  Directory structure ready"
 # ── 6. Setup wizard ───────────────────────────────────────────────────────────
 SECRETS_DIR="$INSTALL_DIR/configs/secrets"
 
-echo ""
-echo "╔══════════════════════════════════════════════════════╗"
-echo "║              🔑  API Key Setup                       ║"
-echo "╚══════════════════════════════════════════════════════╝"
-echo ""
+section "🔑  API KEY SETUP"
 echo "You'll need a few API keys for this to work."
 echo "Don't worry if you've never done this — links + instructions below."
 echo "You can press Enter to skip any OPTIONAL field and add it later."
 echo ""
 
 # ── 6a. Anthropic API key (required) ─────────────────────────────────────────
-echo "──────────────────────────────────────────────────────"
-echo " 🤖  ANTHROPIC API KEY  (required — powers all the AI)"
-echo "──────────────────────────────────────────────────────"
+subsection "🤖  ANTHROPIC API KEY  (required — powers all the AI)"
 echo ""
 echo "  This is what lets the system 'think'. Claude — the AI behind"
 echo "  ChatGPT's main rival — picks your verticals, writes your cold"
@@ -145,9 +187,7 @@ echo "  ✅  Saved."
 echo ""
 
 # ── 6b. Google Places API key (required for scraping) ────────────────────────
-echo "──────────────────────────────────────────────────────"
-echo " 🗺️   GOOGLE PLACES API KEY  (required to find leads)"
-echo "──────────────────────────────────────────────────────"
+subsection "🗺️   GOOGLE PLACES API KEY  (required to find leads)"
 echo ""
 echo "  This is how the system finds real businesses to contact —"
 echo "  pulling from Google Maps (name, phone, website, address)."
@@ -174,9 +214,7 @@ fi
 echo ""
 
 # ── 6c. Notion credentials (optional) ────────────────────────────────────────
-echo "──────────────────────────────────────────────────────"
-echo " 📋  NOTION CRM  (OPTIONAL — your lead database)"
-echo "──────────────────────────────────────────────────────"
+subsection "📋  NOTION CRM  (OPTIONAL — your lead database)"
 echo ""
 echo "  Notion is where your leads live. Each scraped business becomes"
 echo "  a row with phone, website, priority, AI-written email draft etc."
@@ -209,9 +247,7 @@ fi
 echo ""
 
 # ── 6d. Telegram bot (optional) ──────────────────────────────────────────────
-echo "──────────────────────────────────────────────────────"
-echo " 📱  TELEGRAM BOT  (OPTIONAL — control from your phone)"
-echo "──────────────────────────────────────────────────────"
+subsection "📱  TELEGRAM BOT  (OPTIONAL — control from your phone)"
 echo ""
 echo "  Lets you DM the system from your phone:"
 echo "    'scrape us roofers'  →  it scrapes 3 cities and replies."
@@ -249,11 +285,7 @@ EOF
 echo "✅  Secrets saved to configs/secrets/"
 
 # ── 7. Offer + country config generation ────────────────────────────────────
-echo ""
-echo "╔══════════════════════════════════════════════════════╗"
-echo "║              🎯  What are you selling?               ║"
-echo "╚══════════════════════════════════════════════════════╝"
-echo ""
+section "🎯  WHAT ARE YOU SELLING?"
 echo "Tell Claude what you sell — in plain English, like you're"
 echo "describing it to a friend at a dinner party."
 echo ""
@@ -271,17 +303,13 @@ echo "  • 'Google Ads management — chiropractors only — \$1500/mo'"
 echo ""
 echo "More specific = better results."
 echo ""
-prompt "What are you selling? " OFFER_INPUT
+prompt_text "What are you selling? " OFFER_INPUT
 if [ -z "$OFFER_INPUT" ]; then
   OFFER_INPUT="Free website build for small local trade businesses with no/bad website, then a monthly marketing retainer."
   echo "   (no offer entered — using a default trade-business example)"
 fi
 
-echo ""
-echo "╔══════════════════════════════════════════════════════╗"
-echo "║              🌍  Country Setup                       ║"
-echo "╚══════════════════════════════════════════════════════╝"
-echo ""
+section "🌍  COUNTRY"
 echo "Which country do your IDEAL CUSTOMERS live in?"
 echo "(Doesn't have to be where you live — just where the leads are.)"
 echo ""
@@ -320,11 +348,7 @@ else
 fi
 
 # ── 8. Done ───────────────────────────────────────────────────────────────────
-echo ""
-echo "╔══════════════════════════════════════════════════════╗"
-echo "║            ✅  Setup complete!                       ║"
-echo "╚══════════════════════════════════════════════════════╝"
-echo ""
+printf "\n%b%b━━━ ✅  SETUP COMPLETE ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━%b\n\n" "$BOLD" "$GREEN" "$RESET"
 echo "Your config is at: $INSTALL_DIR/configs/$COUNTRY_INPUT.json"
 echo "Your offer + pitch angle are saved in: configs/business_context.json"
 echo ""
