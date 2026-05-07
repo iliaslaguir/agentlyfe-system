@@ -79,6 +79,21 @@ subsection() {
 
 REPO_URL="https://github.com/iliaslaguir/agentlyfe-system.git"
 INSTALL_DIR="$HOME/agentlyfe-system"
+TEST_MODE=0
+
+# Parse flags. The user-facing flag is --test (and -t alias). When set,
+# everything routes to /tmp/agentlyfe-test-<pid>/ — install dir, Dropbox
+# leads_ab, etc. — so trying the system out leaves zero residue once the
+# user `rm -rf`s the temp dir.
+for arg in "$@"; do
+  case "$arg" in
+    --test|-t)
+      TEST_MODE=1
+      INSTALL_DIR="/tmp/agentlyfe-test-$$"
+      export DROPBOX_AB_BASE_DIR="$INSTALL_DIR/dropbox_test"
+      ;;
+  esac
+done
 
 # ── Logo banner ──────────────────────────────────────────────────────────────
 printf "\n"
@@ -93,6 +108,10 @@ BANNER
 printf "%b" "$RESET"
 printf "  %b%bLead Generation System Installer%b\n" "$DIM" "$AMBER" "$RESET"
 printf "  %sgithub.com/iliaslaguir/agentlyfe-system%s\n\n" "$DIM" "$RESET"
+if [ "$TEST_MODE" = "1" ]; then
+  printf "  %b[TEST MODE]%b installing to %s\n" "$AMBER" "$RESET" "$INSTALL_DIR"
+  printf "  %b[TEST MODE]%b Dropbox/leads_ab → %s\n\n" "$AMBER" "$RESET" "$DROPBOX_AB_BASE_DIR"
+fi
 
 # ── 1. Check Python version ───────────────────────────────────────────────────
 PYTHON=$(command -v python3 || true)
@@ -358,3 +377,7 @@ echo "  python3 scripts/ops_router.py scrape $COUNTRY_INPUT <vertical_name>"
 echo ""
 echo "See README.md for the full command reference."
 echo ""
+if [ "$TEST_MODE" = "1" ]; then
+  printf "%bTEST MODE — clean up when done with:%b\n" "$AMBER" "$RESET"
+  printf "  rm -rf %s\n\n" "$INSTALL_DIR"
+fi

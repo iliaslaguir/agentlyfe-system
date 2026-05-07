@@ -696,7 +696,8 @@ def export_ab_rows_to_dropbox(config: dict, niche: str, timestamp: str, fieldnam
     if not config.get("export_ab_only_to_dropbox"):
         return None
 
-    base_dir = config.get("dropbox_ab_base_dir")
+    # Env var DROPBOX_AB_BASE_DIR wins, so --test installs route to /tmp.
+    base_dir = os.environ.get("DROPBOX_AB_BASE_DIR") or config.get("dropbox_ab_base_dir")
     if not base_dir:
         return None
 

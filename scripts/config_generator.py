@@ -17,6 +17,7 @@ Claude analyses the offer, decides ideal customer profile, and generates:
 """
 
 import json
+import os
 import sys
 import urllib.request
 from datetime import datetime, timezone
@@ -29,7 +30,10 @@ STATE           = ROOT / "state"
 OUTPUTS         = ROOT / "outputs"
 ANTHROPIC_KEY_F = CONFIGS / "secrets" / "anthropic_key.txt"
 CONTEXT_FILE    = CONFIGS / "business_context.json"
-DROPBOX_AB = Path.home() / "Dropbox" / "leads_ab"
+
+# Dropbox A/B export base — env var wins so installs invoked with --test
+# don't pollute the real ~/Dropbox/leads_ab tree.
+DROPBOX_AB = Path(os.environ.get("DROPBOX_AB_BASE_DIR") or (Path.home() / "Dropbox" / "leads_ab"))
 
 COUNTRY_NAMES = {
     "us": "United States", "au": "Australia", "ca": "Canada",
