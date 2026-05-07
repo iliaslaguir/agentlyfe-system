@@ -197,10 +197,15 @@ def generate_config_with_claude(country_code: str, offer: str) -> dict:
         offer_escaped=offer.replace('"', '\\"'),
     )
 
+    today = datetime.now().strftime("%B %Y")
+    system_with_date = (
+        f"Today is {today}. If you reference a year in pitch language, use "
+        f"{datetime.now().year} or later — never an earlier year.\n\n"
+    ) + SYSTEM
     payload = json.dumps({
         "model": "claude-haiku-4-5-20251001",
         "max_tokens": 3000,
-        "system": SYSTEM,
+        "system": system_with_date,
         "messages": [{"role": "user", "content": prompt}]
     }).encode()
 

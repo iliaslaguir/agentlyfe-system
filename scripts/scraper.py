@@ -570,11 +570,18 @@ def generate_email(business_name: str, issue: str, has_website: bool, ads_data: 
 
     client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
     ctx = _load_offer_context()
+    today = datetime.now().strftime("%B %Y")          # e.g. "May 2026"
+    next_year = datetime.now().year + 1               # for forward-looking refs
 
     # Build a system message that grounds the cold email in the user's actual
     # offer + pitch angle, sourced from business_context.json (populated by
     # config_generator.py from the install-time "what are you selling?" answer).
+    # Today's date is injected so Claude doesn't reach back to its training-data
+    # default year when writing forward-looking pitch language.
     system_msg = (
+        f"Today is {today}. If you reference a year in the email, use "
+        f"{datetime.now().year} (current) or {next_year} (forward-looking) — "
+        f"never an earlier year.\n\n"
         "You write short, direct cold emails. No fluff, no links, no markdown. "
         "Use a friendly first-person tone. End with a sign-off line — leave the "
         "operator's first name as `[YOUR NAME]` so they fill it in.\n\n"

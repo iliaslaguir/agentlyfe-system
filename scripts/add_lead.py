@@ -163,10 +163,15 @@ Generate all fields for this lead. Return ONLY this JSON:
   "internal_notes": "Brief note about this lead and why they are a good prospect"
 }}"""
 
+    today = datetime.now().strftime("%B %Y")
+    system_with_date = (
+        f"Today is {today}. If you reference a year, use {datetime.now().year} "
+        f"or later — never an earlier year.\n\n"
+    ) + SYSTEM
     payload = json.dumps({
         "model": "claude-haiku-4-5-20251001",
         "max_tokens": 800,
-        "system": SYSTEM,
+        "system": system_with_date,
         "messages": [{"role": "user", "content": prompt}]
     }).encode()
 
