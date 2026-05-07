@@ -8,6 +8,11 @@ from datetime import datetime
 from pathlib import Path
 from urllib.parse import urljoin, quote as url_quote
 
+import sys
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from _secrets import load_secrets
+load_secrets()
+
 import anthropic
 import requests
 from bs4 import BeautifulSoup
