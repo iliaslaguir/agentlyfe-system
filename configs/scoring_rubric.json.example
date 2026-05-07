@@ -1,0 +1,35 @@
+{
+  "offer": "<your offer in plain English>",
+  "instructions": "Edit this file to tune how leads get bucketed A/B/C. Tiers are checked top-to-bottom; the first tier whose ALL signals pass becomes the lead's priority. Empty/missing signals always pass — so an empty tier at the end works as a catch-all. Signals are described in scripts/_scoring.py. After editing, no restart needed — the next scrape picks it up.",
+  "tiers": [
+    {
+      "priority": "A",
+      "label": "Hot — perfect-fit lead, no current solution visible",
+      "signals": {
+        "name_contains_any": ["EXAMPLE: hotel", "resort"],
+        "name_contains_none": ["budget", "hostel"],
+        "place_types_any": [],
+        "website_required": null,
+        "website_score_min": null,
+        "website_score_max": null,
+        "website_contains_any": [],
+        "website_contains_none": ["EXAMPLE: sauna", "klafs"],
+        "min_review_count": 0
+      }
+    },
+    {
+      "priority": "B",
+      "label": "Warm — good fit, weak current solution",
+      "signals": {
+        "name_contains_any": ["hotel"],
+        "website_contains_any": ["spa"],
+        "website_contains_none": ["klafs", "tylo", "harvia"]
+      }
+    },
+    {
+      "priority": "C",
+      "label": "Cold — already has the kind of solution we sell",
+      "signals": {}
+    }
+  ]
+}

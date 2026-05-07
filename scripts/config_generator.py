@@ -68,26 +68,26 @@ SYSTEM = """You are a lead-generation strategist.
 You are given an OFFER (what the user is selling) and a COUNTRY.
 Your job: design the ideal go-to-market lead-gen config for THAT offer in THAT country.
 
-Think first: who buys this offer? What kinds of businesses or individuals?
+You also produce a SCORING RUBRIC tailored to this specific offer.
+The rubric decides whether a scraped business is priority A (hot), B (warm), or C (cold).
+A lead is hot when their pain is acute and our offer is an obvious fit.
+A lead is cold when they already have a competing solution, are too small/big to care,
+or otherwise don't fit our buyer profile.
+
+The rubric is applied to lead data via simple deterministic checks
+(no per-lead Claude calls), so signals must be concrete keywords, place-type strings,
+website-content terms, review-count thresholds, etc.
+
+Think first: who buys this offer? What kinds of businesses?
 Then translate that into 5-9 concrete VERTICALS (niches) we can search for on Google Places.
-Each vertical name must be a short snake_case identifier (e.g. "general_dentists", "med_spas",
-"hvac_contractors") — usable in commands and filenames.
+Each vertical name must be a short snake_case identifier (e.g. "general_dentists", "med_spas").
 
 For each vertical, generate 3-5 Google Places search KEYWORDS in the local language and
-terminology of the country. Always include "" (empty string) as the first keyword so the
-vertical-name itself is used as a base search.
+terminology of the country. Always include "" (empty string) as the first keyword.
 
-Pick 8-10 CITIES in the chosen country that maximise the value of this specific offer.
-Logic depends on the offer:
-  - For local services / website / marketing offers → affluent mid-size cities, owner-operated
-    businesses, low-competition vs major metros.
-  - For B2B SaaS / consulting → cities with the right industry density.
-  - For consumer products → cities matching buyer demographics.
-  Adapt — don't blindly default to UK trades cities.
+Pick 8-10 CITIES that maximise the value of THIS specific offer in THAT country.
 
-Also produce a one-paragraph PITCH ANGLE that the cold-email generator will re-use later.
-It should explain: what specific pain we hit, what we deliver, what's the ask, why now.
-Keep it grounded in the offer the user described, not generic.
+Produce a one-paragraph PITCH ANGLE the cold-email generator will reuse.
 
 Respond with JSON only — no preamble, no markdown, no backticks."""
 
@@ -95,7 +95,7 @@ Respond with JSON only — no preamble, no markdown, no backticks."""
 PROMPT_TEMPLATE = """Country: {country_name} ({country_code})
 Offer: {offer}
 
-Return ONLY this JSON:
+Return ONLY this JSON. Replace every placeholder with concrete values for THIS offer.
 
 {{
   "country_code": "{country_code}",
@@ -118,8 +118,50 @@ Return ONLY this JSON:
   "progress_file": "state/{country_code}_progress.json",
   "output_dir": "outputs/{country_code}",
   "export_ab_only_to_dropbox": true,
-  "dropbox_ab_base_dir": "~/Dropbox/leads_ab"
-}}"""
+  "dropbox_ab_base_dir": "~/Dropbox/leads_ab",
+  "scoring_rubric": {{
+    "instructions": "Edit this rubric to tune how leads bucket into A/B/C. Tiers checked top-to-bottom; the first tier whose ALL signals pass wins. Empty signals always pass — useful for a catch-all C bucket. After editing, no restart needed.",
+    "tiers": [
+      {{
+        "priority": "A",
+        "label": "Hot — short reason matching THIS offer",
+        "signals": {{
+          "name_contains_any": ["specific words a hot lead's name often contains"],
+          "name_contains_none": ["words that disqualify (chain names, hostels, etc.)"],
+          "place_types_any": ["lodging", "spa"],
+          "website_required": null,
+          "website_score_min": null,
+          "website_score_max": null,
+          "website_contains_any": [],
+          "website_contains_none": ["evidence they ALREADY have what we sell"],
+          "min_review_count": 0
+        }}
+      }},
+      {{
+        "priority": "B",
+        "label": "Warm — short reason matching THIS offer",
+        "signals": {{
+          "name_contains_any": [],
+          "website_contains_any": [],
+          "website_contains_none": []
+        }}
+      }},
+      {{
+        "priority": "C",
+        "label": "Cold — already has the solution we sell, or wrong fit",
+        "signals": {{}}
+      }}
+    ]
+  }}
+}}
+
+Rules for scoring_rubric:
+- Tier A signals must encode "this lead has the PAIN our offer solves and NOT yet the solution"
+- Tier B signals must encode "decent fit but with weaker urgency or partial solution"
+- Tier C is a catch-all — leave its signals empty
+- For website-pitch-style offers (selling websites/marketing), A=no website (`website_required: false`), B=bad website (`website_required: true, website_score_max: 60`)
+- For non-website offers (saunas, AI tools, equipment), website existence is irrelevant — base signals on name keywords, place types, and website CONTENT (does the site MENTION your competing solution?)
+- Use the OFFER to decide which signals matter."""
 
 
 def generate_config_with_claude(country_code: str, offer: str) -> dict:
@@ -137,7 +179,7 @@ def generate_config_with_claude(country_code: str, offer: str) -> dict:
 
     payload = json.dumps({
         "model": "claude-haiku-4-5-20251001",
-        "max_tokens": 1500,
+        "max_tokens": 3000,
         "system": SYSTEM,
         "messages": [{"role": "user", "content": prompt}]
     }).encode()
@@ -216,9 +258,36 @@ def save_config(country_code: str, config: dict) -> Path:
         backup = CONFIGS / f"{country_code}.json.bak"
         path.rename(backup)
         print(f"  Backed up existing config to {backup.name}")
-    path.write_text(json.dumps(config, indent=2))
+    # Country config doesn't need to embed the rubric — it lives in its own file.
+    config_to_save = {k: v for k, v in config.items() if k != "scoring_rubric"}
+    path.write_text(json.dumps(config_to_save, indent=2))
     print(f"  Config saved: {path}")
     return path
+
+
+def save_scoring_rubric(offer: str, config: dict) -> Path:
+    """Save the offer-aware scoring rubric to its own file users can hand-edit."""
+    rubric_path = CONFIGS / "scoring_rubric.json"
+    rubric = config.get("scoring_rubric") or {}
+
+    payload = {
+        "offer": offer,
+        "instructions": rubric.get(
+            "instructions",
+            "Edit this rubric to tune how leads bucket into A/B/C. Tiers are checked top-to-bottom; the first tier whose ALL signals pass wins. Empty signals always pass — useful for a catch-all. After editing, no restart needed.",
+        ),
+        "tiers": rubric.get("tiers", []),
+    }
+
+    if rubric_path.exists():
+        backup = CONFIGS / "scoring_rubric.json.bak"
+        rubric_path.rename(backup)
+        print(f"  Backed up existing rubric to {backup.name}")
+
+    rubric_path.write_text(json.dumps(payload, indent=2))
+    print(f"  Scoring rubric saved: {rubric_path}")
+    print(f"    (edit this file anytime to refine your A/B/C buckets)")
+    return rubric_path
 
 
 def update_business_context(offer: str, config: dict) -> None:
@@ -258,6 +327,12 @@ def print_summary(country_code: str, config: dict) -> None:
     for n in niches:
         kws = [k for k in config['niche_keywords'][n] if k][:3]
         print(f"  • {n}  ({', '.join(kws)})")
+    rubric = config.get("scoring_rubric") or {}
+    tiers = rubric.get("tiers") or []
+    if tiers:
+        print(f"\nScoring tiers (configs/scoring_rubric.json — edit anytime):")
+        for t in tiers:
+            print(f"  {t.get('priority', '?')}: {t.get('label', '')[:80]}")
     print(f"\nReady to scrape. Run e.g.:")
     if niches:
         print(f"  python3 scripts/ops_router.py scrape {country_code} {niches[0]}")
@@ -280,6 +355,7 @@ def generate(country_code: str, offer: str | None = None) -> None:
     init_master_file(country_code)
     init_progress_file(country_code, config)
     save_config(country_code, config)
+    save_scoring_rubric(offer, config)
     update_business_context(offer, config)
 
     print_summary(country_code, config)
