@@ -266,7 +266,7 @@ def search_places(full_query: str, max_results: int = 60):
     headers = {
         "Content-Type": "application/json",
         "X-Goog-Api-Key": GOOGLE_API_KEY,
-        "X-Goog-FieldMask": "places.displayName,places.formattedAddress,places.websiteUri,places.nationalPhoneNumber,places.googleMapsUri,places.businessStatus,places.userRatingCount,places.rating,nextPageToken"
+        "X-Goog-FieldMask": "places.displayName,places.formattedAddress,places.websiteUri,places.nationalPhoneNumber,places.googleMapsUri,places.businessStatus,places.userRatingCount,places.rating,places.types,places.primaryType,nextPageToken"
     }
     body = {
         "textQuery": full_query,
@@ -285,6 +285,10 @@ def search_places(full_query: str, max_results: int = 60):
             status = place.get("businessStatus", "OPERATIONAL")
             if status != "OPERATIONAL":
                 continue
+            place_types = place.get("types", []) or []
+            primary_type = place.get("primaryType", "")
+            if primary_type and primary_type not in place_types:
+                place_types = [primary_type] + place_types
             results.append({
                 "name": place.get("displayName", {}).get("text", ""),
                 "address": place.get("formattedAddress", ""),
@@ -293,6 +297,8 @@ def search_places(full_query: str, max_results: int = 60):
                 "maps_url": place.get("googleMapsUri", ""),
                 "review_count": int(place.get("userRatingCount", 0) or 0),
                 "rating": float(place.get("rating", 0) or 0),
+                "types": place_types,
+                "primary_type": primary_type,
             })
             if len(results) >= max_results:
                 return results

@@ -155,12 +155,28 @@ Return ONLY this JSON. Replace every placeholder with concrete values for THIS o
   }}
 }}
 
-Rules for scoring_rubric:
-- Tier A signals must encode "this lead has the PAIN our offer solves and NOT yet the solution"
-- Tier B signals must encode "decent fit but with weaker urgency or partial solution"
-- Tier C is a catch-all — leave its signals empty
-- For website-pitch-style offers (selling websites/marketing), A=no website (`website_required: false`), B=bad website (`website_required: true, website_score_max: 60`)
-- For non-website offers (saunas, AI tools, equipment), website existence is irrelevant — base signals on name keywords, place types, and website CONTENT (does the site MENTION your competing solution?)
+Rules for scoring_rubric — read carefully, this is what makes the rubric ACTUALLY work:
+
+- Tier identity (name_contains_any + place_types_any) is OR-ed at runtime: a lead
+  matches if EITHER its name has the keywords OR its Google Places type matches.
+  So you don't need to make `name_contains_any` exhaustive — picking the right
+  Google Places types like "lodging", "spa", "gym", "dentist", "lawyer", etc.
+  catches chains that don't contain category words in their names.
+- Keep `website_contains_any` MINIMAL or empty. Homepage HTML is only the first
+  5000 chars and often lacks specific marketing copy. Relying on positive
+  website-content matches makes Tier A unreachable in practice. Prefer
+  `website_contains_none` (negative signals — "they DON'T already have what we sell")
+  which is the strongest possible "hot lead" indicator.
+- Tier A signals encode "perfect fit, no current solution visible". Use:
+    name_contains_any / place_types_any  → identifies them as a target
+    website_contains_none                → confirms they don't already have it
+    (omit website_contains_any unless absolutely critical)
+- Tier B signals encode "decent fit, partial or weaker current solution".
+- Tier C is the catch-all — leave its signals empty {}.
+- For website-pitch-style offers (selling websites/marketing), A=no website
+  (`website_required: false`), B=bad website (`website_required: true, website_score_max: 60`).
+- For non-website offers (saunas, AI tools, equipment, services), website existence
+  is irrelevant — set `website_required: null` and rely on names+types+negative content.
 - Use the OFFER to decide which signals matter."""
 
 

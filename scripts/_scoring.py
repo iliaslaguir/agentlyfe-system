@@ -107,29 +107,30 @@ def _matches_tier(biz: dict, website_data: dict, signals: dict) -> tuple[bool, l
     site_score = int((website_data or {}).get("score", biz.get("website_score") or 0) or 0)
     site_text = _norm((website_data or {}).get("raw_html") or biz.get("website_text", ""))
 
-    # name_contains_any — at least one term must appear in name OR address
-    needles = signals.get("name_contains_any") or []
-    if needles:
-        hit = next((n for n in needles if _norm(n) and _norm(n) in name + " " + address), None)
-        if not hit:
+    # IDENTITY signals (name_contains_any + place_types_any) are OR-ed:
+    # the lead identifies as a target if EITHER its name has the right keywords
+    # OR its Google Places type matches. This lets luxury chains like "Hyatt",
+    # "Mandarin Oriental", "W" pass through on type=lodging even when their
+    # name doesn't literally contain "hotel".
+    needles = [n for n in (signals.get("name_contains_any") or []) if _norm(n)]
+    types_needed = [t for t in (signals.get("place_types_any") or []) if _norm(t)]
+    name_hit = next((n for n in needles if _norm(n) in name + " " + address), None)
+    type_hit = next((t for t in types_needed if _norm(t) in place_types), None)
+    if needles or types_needed:
+        if not (name_hit or type_hit):
             return False, []
-        matched.append(f"name has '{hit}'")
+        if name_hit:
+            matched.append(f"name has '{name_hit}'")
+        if type_hit:
+            matched.append(f"place_type='{type_hit}'")
 
-    # name_contains_none — none of these may appear
+    # name_contains_none — disqualifiers, AND-ed: none of these may appear
     blockers = signals.get("name_contains_none") or []
     if blockers:
         hit = next((b for b in blockers if _norm(b) and _norm(b) in name + " " + address), None)
         if hit:
             return False, []
         matched.append("name clean of blockers")
-
-    # place_types_any
-    types_needed = signals.get("place_types_any") or []
-    if types_needed:
-        hit = next((t for t in types_needed if _norm(t) in place_types), None)
-        if not hit:
-            return False, []
-        matched.append(f"place_type='{hit}'")
 
     # website_required — None/missing = don't care
     site_req = signals.get("website_required")
