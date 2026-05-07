@@ -549,45 +549,74 @@ def check_live_ads(business_name: str, niche: str) -> dict:
         return _empty
 
 
+def _load_offer_context() -> dict:
+    """Read offer + pitch_angle + target_profile from business_context.json
+    so email copy reflects what the user actually sells, not the legacy
+    Agentlyfe/free-website default."""
+    try:
+        ctx = json.loads((ROOT / "configs" / "business_context.json").read_text())
+        return {
+            "offer": (ctx.get("offer") or "").strip(),
+            "pitch_angle": (ctx.get("pitch_angle") or "").strip(),
+            "target_profile": (ctx.get("target_profile") or "").strip(),
+        }
+    except Exception:
+        return {"offer": "", "pitch_angle": "", "target_profile": ""}
+
+
 def generate_email(business_name: str, issue: str, has_website: bool, ads_data: dict = None, live_ads_data: dict = None):
     if not ANTHROPIC_API_KEY:
         return "ANTHROPIC_API_KEY missing - email not generated"
 
     client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
+    ctx = _load_offer_context()
 
-    if ads_data and ads_data.get("ads_detected"):
-        if live_ads_data and live_ads_data.get("live_ads_found") and live_ads_data.get("ad_weaknesses"):
-            prompt = (
-                f"Write a 3-sentence cold email from Jake at Agentlyfe to {business_name}. "
-                f"They are spending on {live_ads_data['live_ad_platforms']} ads but their actual live ads have these specific problems: {live_ads_data['ad_weaknesses']}. "
-                f"They are paying for ads that won't convert. "
-                f"Offer to fix their landing page and ad copy for free — they only pay 500 euros if they love it. "
-                f"Be direct, reference the specific waste, no fluff, no links."
-            )
-        else:
-            prompt = (
-                f"Write a 3-sentence cold email from Jake at Agentlyfe to {business_name}. "
-                f"They are running {ads_data['pixel_types']} but their site is losing them money: {ads_data['cta_issues']}. "
-                f"They are paying for traffic that isn't converting. "
-                f"Offer to fix their landing page for free — they only pay 500 euros if they love it. "
-                f"Be direct, reference the waste, no fluff, no links."
-            )
+    # Build a system message that grounds the cold email in the user's actual
+    # offer + pitch angle, sourced from business_context.json (populated by
+    # config_generator.py from the install-time "what are you selling?" answer).
+    system_msg = (
+        "You write short, direct cold emails. No fluff, no links, no markdown. "
+        "Use a friendly first-person tone. End with a sign-off line — leave the "
+        "operator's first name as `[YOUR NAME]` so they fill it in.\n\n"
+        f"OFFER: {ctx['offer'] or 'a service the user sells to small/medium businesses'}\n"
+        f"TARGET BUYER: {ctx['target_profile'] or '(not specified)'}\n"
+        f"PITCH ANGLE: {ctx['pitch_angle'] or '(not specified)'}\n\n"
+        "Write the email as someone selling THIS offer — not as a generic agency."
+    )
+
+    # Pick the right hook based on what we observed about the lead.
+    if ads_data and ads_data.get("ads_detected") and live_ads_data and live_ads_data.get("live_ads_found"):
+        hook = (
+            f"This lead ({business_name}) is currently running ads on "
+            f"{live_ads_data.get('live_ad_platforms', '')} with these weaknesses: "
+            f"{live_ads_data.get('ad_weaknesses', '(see ad library)')}. "
+            f"They have BUDGET — that's the opening. Reference the specific waste in 1 line, "
+            f"then pivot to how YOUR offer above solves the deeper problem they're masking with ads."
+        )
     elif has_website:
-        prompt = (
-            f"Write a 3-sentence cold email from Jake at Agentlyfe to {business_name}. "
-            f"Their website has issues: {issue}. Offer to rebuild it for free, they only pay 500 euros if they love it. "
-            f"Be conversational, no fluff, no links."
+        hook = (
+            f"This lead ({business_name}) has a website with this issue: {issue}. "
+            f"Open with a single specific observation about their business or website, "
+            f"then pitch YOUR offer above."
         )
     else:
-        prompt = (
-            f"Write a 3-sentence cold email from Jake at Agentlyfe to {business_name}. "
-            f"They have no website. Offer to build one for free, they only pay 500 euros if they love it. "
-            f"Be conversational, no fluff, no links."
+        hook = (
+            f"This lead ({business_name}) has no website. "
+            f"Open with one warm sentence acknowledging they're already established locally, "
+            f"then pitch YOUR offer above."
         )
+
+    prompt = (
+        f"{hook}\n\n"
+        "Write a 3-4 sentence cold email — Subject line on the first line "
+        "(prefixed `Subject:`), then a blank line, then the body. End with a "
+        "single sign-off line containing only `[YOUR NAME]`."
+    )
 
     message = client.messages.create(
         model="claude-haiku-4-5-20251001",
-        max_tokens=200,
+        max_tokens=300,
+        system=system_msg,
         messages=[{"role": "user", "content": prompt}]
     )
     return message.content[0].text
