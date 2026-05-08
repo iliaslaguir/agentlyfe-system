@@ -745,8 +745,11 @@ def export_ab_rows_to_dropbox(config: dict, niche: str, timestamp: str, fieldnam
     if not config.get("export_ab_only_to_dropbox"):
         return None
 
-    # Env var DROPBOX_AB_BASE_DIR wins, so --test installs route to /tmp.
-    base_dir = os.environ.get("DROPBOX_AB_BASE_DIR") or config.get("dropbox_ab_base_dir")
+    # _paths.leads_folder() honors LEADS_FOLDER / DROPBOX_AB_BASE_DIR env vars,
+    # then configs/leads_folder.txt, then back-compat defaults — so --test
+    # installs and the user's chosen install-time path both stay isolated.
+    from _paths import leads_folder as _leads_folder
+    base_dir = str(_leads_folder())
     if not base_dir:
         return None
 

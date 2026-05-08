@@ -31,9 +31,11 @@ OUTPUTS         = ROOT / "outputs"
 ANTHROPIC_KEY_F = CONFIGS / "secrets" / "anthropic_key.txt"
 CONTEXT_FILE    = CONFIGS / "business_context.json"
 
-# Dropbox A/B export base — env var wins so installs invoked with --test
-# don't pollute the real ~/Dropbox/leads_ab tree.
-DROPBOX_AB = Path(os.environ.get("DROPBOX_AB_BASE_DIR") or (Path.home() / "Dropbox" / "leads_ab"))
+# Leads-folder resolution lives in _paths.py — honors install-time choice,
+# env var override, and back-compat with old ~/Dropbox/leads_ab installs.
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from _paths import leads_folder as _leads_folder
+DROPBOX_AB = _leads_folder()
 
 COUNTRY_NAMES = {
     "us": "United States", "au": "Australia", "ca": "Canada",

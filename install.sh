@@ -90,7 +90,7 @@ for arg in "$@"; do
     --test|-t)
       TEST_MODE=1
       INSTALL_DIR="/tmp/agentlyfe-test-$$"
-      export DROPBOX_AB_BASE_DIR="$INSTALL_DIR/dropbox_test"
+      export LEADS_FOLDER="$INSTALL_DIR/leads"
       ;;
   esac
 done
@@ -105,7 +105,7 @@ write_env_test_file() {
     cat > "$INSTALL_DIR/.env-test" <<-EOF
 		# Source this file before running any script in test mode:
 		#   source .env-test
-		export DROPBOX_AB_BASE_DIR="$DROPBOX_AB_BASE_DIR"
+		export LEADS_FOLDER="$LEADS_FOLDER"
 	EOF
   fi
 }
@@ -125,7 +125,7 @@ printf "  %b%bLead Generation System Installer%b\n" "$DIM" "$AMBER" "$RESET"
 printf "  %sgithub.com/iliaslaguir/agentlyfe-system%s\n\n" "$DIM" "$RESET"
 if [ "$TEST_MODE" = "1" ]; then
   printf "  %b[TEST MODE]%b installing to %s\n" "$AMBER" "$RESET" "$INSTALL_DIR"
-  printf "  %b[TEST MODE]%b Dropbox/leads_ab → %s\n\n" "$AMBER" "$RESET" "$DROPBOX_AB_BASE_DIR"
+  printf "  %b[TEST MODE]%b leads → %s\n\n" "$AMBER" "$RESET" "$LEADS_FOLDER"
 fi
 
 # ── 1. Check Python version ───────────────────────────────────────────────────
@@ -321,6 +321,34 @@ GOOGLE_PLACES_API_KEY=${GOOGLE_KEY}
 EOF
 echo "✅  Secrets saved to configs/secrets/"
 
+# ── 7. Where to save scraped leads ───────────────────────────────────────────
+section "📁  WHERE TO SAVE LEADS"
+echo "Where should scraped lead CSVs be written?"
+echo ""
+echo "Anywhere works. Common picks:"
+echo "  ~/agentlyfe-leads          (default — plain folder in your home dir)"
+echo "  ~/Dropbox/agentlyfe-leads  (auto-syncs to all your devices via Dropbox)"
+echo "  ~/Library/Mobile\\ Documents/com~apple~CloudDocs/agentlyfe-leads"
+echo "                             (auto-syncs via iCloud Drive on macOS)"
+echo "  ~/Google\\ Drive/agentlyfe-leads"
+echo "                             (auto-syncs via Google Drive)"
+echo ""
+echo "If you want CSVs to appear on your phone automatically, point this at a"
+echo "synced folder. Otherwise pick anything — you can scp/copy the files later."
+echo ""
+if [ "$TEST_MODE" = "1" ]; then
+  LEADS_FOLDER="$INSTALL_DIR/leads"
+  echo "  [TEST MODE] forcing leads folder to: $LEADS_FOLDER"
+else
+  prompt_text "Leads folder [Enter for ~/agentlyfe-leads]: " LEADS_FOLDER
+  LEADS_FOLDER="${LEADS_FOLDER:-$HOME/agentlyfe-leads}"
+  # Expand ~ manually since we read it as a literal string.
+  LEADS_FOLDER="${LEADS_FOLDER/#\~/$HOME}"
+fi
+mkdir -p "$LEADS_FOLDER"
+echo "$LEADS_FOLDER" > "$INSTALL_DIR/configs/leads_folder.txt"
+echo "  ✅  Leads will save to: $LEADS_FOLDER"
+
 # ── 7. Offer + country config generation ────────────────────────────────────
 section "🎯  WHAT ARE YOU SELLING?"
 echo "Tell Claude what you sell — in plain English, like you're"
@@ -386,12 +414,19 @@ fi
 
 # ── 8. Done ───────────────────────────────────────────────────────────────────
 printf "\n%b%b━━━ ✅  SETUP COMPLETE ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━%b\n\n" "$BOLD" "$GREEN" "$RESET"
-echo "Your config is at: $INSTALL_DIR/configs/$COUNTRY_INPUT.json"
-echo "Your offer + pitch angle are saved in: configs/business_context.json"
+echo "📂  Configs:    $INSTALL_DIR/configs/"
+echo "📂  Leads:      $LEADS_FOLDER"
+echo "📂  Scoring:    $INSTALL_DIR/configs/scoring_rubric.json  (edit anytime)"
 echo ""
-echo "Run a scrape (use any vertical name from the config):"
+echo "Run a scrape (replace <vertical> with one from the list above):"
 echo "  cd $INSTALL_DIR"
-echo "  python3 scripts/ops_router.py scrape $COUNTRY_INPUT <vertical_name>"
+echo "  python3 scripts/ops_router.py scrape $COUNTRY_INPUT <vertical>"
+echo ""
+echo "After scraping, your leads land in two formats:"
+printf "  %b%s%b\n" "$DIM" "$LEADS_FOLDER/<country>/<vertical>/<...>_share.csv" "$RESET"
+echo "    ↑ lean, ready to share with a buddy / VA / setter"
+printf "  %b%s%b\n" "$DIM" "$LEADS_FOLDER/<country>/<vertical>/<...>_ab.csv" "$RESET"
+echo "    ↑ full schema, used for Notion sync"
 echo ""
 echo "See README.md for the full command reference."
 echo ""

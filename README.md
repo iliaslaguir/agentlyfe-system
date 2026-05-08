@@ -148,6 +148,37 @@ After editing, no restart needed. Next scrape picks it up.
 
 ---
 
+## Where do my leads end up?
+
+You pick the folder during install. Default is `~/agentlyfe-leads/`. Every
+scrape produces two CSVs there, organised by country and vertical:
+
+```
+<your-leads-folder>/
+└── us/
+    └── general_dentists/
+        ├── us_general_dentists_<timestamp>_share.csv   ← lean, share-ready
+        └── us_general_dentists_<timestamp>_ab.csv      ← full schema (for Notion sync)
+```
+
+Three retrieval modes — pick whichever fits how you work:
+
+1. **Local file** — open the CSV in Numbers / Excel / Google Sheets directly.
+2. **Auto-sync to phone/laptop** — point the leads folder at a synced folder
+   (e.g. `~/Dropbox/agentlyfe-leads`, `~/Library/Mobile Documents/com~apple~CloudDocs/agentlyfe-leads`,
+   `~/Google Drive/agentlyfe-leads`) and the CSVs appear everywhere automatically.
+3. **scp from a VPS** —
+   ```bash
+   scp clawd@your-vps:~/agentlyfe-leads/us/general_dentists/*.csv ~/Downloads/
+   ```
+
+Notion sync is **optional** — the CSVs always exist whether or not you connect Notion.
+
+To change the folder later: edit `configs/leads_folder.txt` to a new absolute
+path, or `export LEADS_FOLDER=/some/other/path` before running scripts.
+
+---
+
 ## Common commands
 
 ```bash
