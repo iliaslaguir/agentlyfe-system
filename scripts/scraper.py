@@ -755,6 +755,44 @@ def export_ab_rows_to_dropbox(config: dict, niche: str, timestamp: str, fieldnam
         writer.writeheader()
         writer.writerows(ab_rows)
 
+    # Also write a LEAN share-ready CSV next to the full _ab.csv. This is the
+    # one to send to a buddy / VA / setter — only the columns a human actually
+    # needs to act on the lead. The full _ab.csv stays put for Notion sync
+    # and any downstream tooling that reads the kitchen-sink schema.
+    share_file = export_dir / f"{config['country_code']}_{niche}_{timestamp}_share.csv"
+    share_columns = [
+        "business_name",   # was: name
+        "priority",
+        "city",
+        "phone",
+        "email",           # was: email_found
+        "rating",
+        "review_count",
+        "website",
+        "google_maps_url", # was: maps_url
+        "cold_email",      # was: email_draft
+        "notes",           # blank — for the user / VA to fill in
+        "status",          # blank — for the user / VA (called / replied / etc.)
+    ]
+    with open(share_file, "w", newline="") as handle:
+        writer = csv.DictWriter(handle, fieldnames=share_columns)
+        writer.writeheader()
+        for r in ab_rows:
+            writer.writerow({
+                "business_name":  r.get("name", ""),
+                "priority":       r.get("priority", ""),
+                "city":           r.get("city", ""),
+                "phone":          r.get("phone", ""),
+                "email":          r.get("email_found", "") or r.get("email", ""),
+                "rating":         r.get("rating", ""),
+                "review_count":   r.get("review_count", ""),
+                "website":        r.get("website", ""),
+                "google_maps_url": r.get("maps_url", ""),
+                "cold_email":     r.get("email_draft", ""),
+                "notes":          "",
+                "status":         "",
+            })
+
     return export_file
 
 
