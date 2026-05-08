@@ -176,7 +176,7 @@ Rules for scoring_rubric — read carefully, this is what makes the rubric ACTUA
     website_contains_none                → confirms they don't already have it
     (omit website_contains_any unless absolutely critical)
 - Tier B signals encode "decent fit, partial or weaker current solution".
-- Tier C is the catch-all — leave its signals empty {}.
+- Tier C is the catch-all, leave its signals empty {{}}.
 - For website-pitch-style offers (selling websites/marketing), A=no website
   (`website_required: false`), B=bad website (`website_required: true, website_score_max: 60`).
 - For non-website offers (saunas, AI tools, equipment, services), website existence
