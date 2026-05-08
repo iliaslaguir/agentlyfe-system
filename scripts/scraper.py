@@ -570,54 +570,57 @@ def generate_email(business_name: str, issue: str, has_website: bool, ads_data: 
 
     client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
     ctx = _load_offer_context()
-    today = datetime.now().strftime("%B %Y")          # e.g. "May 2026"
-    next_year = datetime.now().year + 1               # for forward-looking refs
+    today = datetime.now().strftime("%B %Y")
+    next_year = datetime.now().year + 1
 
-    # Build a system message that grounds the cold email in the user's actual
-    # offer + pitch angle, sourced from business_context.json (populated by
-    # config_generator.py from the install-time "what are you selling?" answer).
-    # Today's date is injected so Claude doesn't reach back to its training-data
-    # default year when writing forward-looking pitch language.
+    # Email is OFFER-FIRST. The lead's website / ad activity is just context
+    # so Claude can personalize naturally — it must NOT become the email's
+    # frame. The frame is always "I sell <OFFER> and you fit because <pitch>."
+    # That's the universal rule: the email pitches what the user sells, not
+    # what the lead happens to be doing wrong with ads.
     system_msg = (
         f"Today is {today}. If you reference a year in the email, use "
         f"{datetime.now().year} (current) or {next_year} (forward-looking) — "
         f"never an earlier year.\n\n"
-        "You write short, direct cold emails. No fluff, no links, no markdown. "
-        "Use a friendly first-person tone. End with a sign-off line — leave the "
-        "operator's first name as `[YOUR NAME]` so they fill it in.\n\n"
-        f"OFFER: {ctx['offer'] or 'a service the user sells to small/medium businesses'}\n"
+        "You write short, direct B2B cold emails on behalf of an operator who "
+        "sells the OFFER below. The email pitches THE OFFER. The lead's "
+        "website / ad activity / size is BACKGROUND — use it to personalize "
+        "in one short sentence, not to frame the whole pitch.\n\n"
+        f"OFFER: {ctx['offer'] or '(no offer set — fall back to a generic services pitch)'}\n"
         f"TARGET BUYER: {ctx['target_profile'] or '(not specified)'}\n"
         f"PITCH ANGLE: {ctx['pitch_angle'] or '(not specified)'}\n\n"
-        "Write the email as someone selling THIS offer — not as a generic agency."
+        "Style:\n"
+        "- 3-4 sentences total.\n"
+        "- First line: `Subject: <subject>` — the subject must be about the OFFER, "
+        "  not about ads/website condition. Keep under 80 chars.\n"
+        "- Body: one warm opener tied to the lead, one sentence on what we sell "
+        "  and why it fits THEM specifically, one sentence with the ask "
+        "  (15-min call / quick reply / etc.).\n"
+        "- No fluff, no markdown, no links, no emojis.\n"
+        "- End with a single sign-off line containing only `[YOUR NAME]` — "
+        "  the operator fills that in."
     )
 
-    # Pick the right hook based on what we observed about the lead.
-    if ads_data and ads_data.get("ads_detected") and live_ads_data and live_ads_data.get("live_ads_found"):
-        hook = (
-            f"This lead ({business_name}) is currently running ads on "
-            f"{live_ads_data.get('live_ad_platforms', '')} with these weaknesses: "
-            f"{live_ads_data.get('ad_weaknesses', '(see ad library)')}. "
-            f"They have BUDGET — that's the opening. Reference the specific waste in 1 line, "
-            f"then pivot to how YOUR offer above solves the deeper problem they're masking with ads."
-        )
-    elif has_website:
-        hook = (
-            f"This lead ({business_name}) has a website with this issue: {issue}. "
-            f"Open with a single specific observation about their business or website, "
-            f"then pitch YOUR offer above."
-        )
+    # Build the per-lead context block — every signal we have, but framed as
+    # background facts, not as the email's hook.
+    facts = [f"Lead: {business_name}"]
+    if has_website:
+        facts.append(f"They have a website (note: {issue}).")
     else:
-        hook = (
-            f"This lead ({business_name}) has no website. "
-            f"Open with one warm sentence acknowledging they're already established locally, "
-            f"then pitch YOUR offer above."
-        )
+        facts.append("They don't have a website.")
+    if ads_data and ads_data.get("ads_detected"):
+        facts.append("They're currently running paid ads (signal: they invest in growth).")
+    if live_ads_data and live_ads_data.get("live_ads_found"):
+        facts.append(f"Confirmed running live ads on {live_ads_data.get('live_ad_platforms','')}.")
 
     prompt = (
-        f"{hook}\n\n"
-        "Write a 3-4 sentence cold email — Subject line on the first line "
-        "(prefixed `Subject:`), then a blank line, then the body. End with a "
-        "single sign-off line containing only `[YOUR NAME]`."
+        "Write the cold email per the style rules in the system message. "
+        "Pitch the OFFER. Use the facts below ONLY to lightly personalize "
+        "(e.g. 'I see you're an established hotel in Barcelona' or 'I noticed "
+        "you don't currently mention <competing solution>'). Do NOT make ads, "
+        "websites, or marketing the subject of the email — those are not what "
+        "we sell.\n\n"
+        + "\n".join(f"- {f}" for f in facts)
     )
 
     message = client.messages.create(
