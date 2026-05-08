@@ -224,6 +224,35 @@ def main():
         print(ask_claude(question))
         sys.exit(0)
 
+    # ---------- OPEN LEADS FOLDER / FILE ----------
+    # `leads`         → open the leads root in OS file manager (or print path)
+    # `leads latest`  → open the most recent *_share.csv across all niches
+    # `leads dir`     → just print the path (no open attempt)
+    if cmd == "leads":
+        from _paths import leads_folder
+        from _open import open_path, print_access_help, is_remote_session
+        root = leads_folder()
+        if not root.exists():
+            print(f"No leads folder yet at {root}. Run a scrape first.")
+            sys.exit(0)
+        sub = tokens[1] if len(tokens) > 1 else ""
+        if sub == "latest":
+            shares = sorted(root.glob("*/*/*_share.csv"), key=lambda p: p.stat().st_mtime, reverse=True)
+            if not shares:
+                print(f"No *_share.csv files found under {root}. Run a scrape first.")
+                sys.exit(0)
+            target = shares[0]
+            print(f"Latest share file: {target}")
+            print_access_help(target)
+            sys.exit(0)
+        if sub == "dir":
+            print(root)
+            sys.exit(0)
+        # default: open the leads folder root
+        print(f"Leads folder: {root}")
+        print_access_help(root)
+        sys.exit(0)
+
     # ---------- UPDATE CONTEXT ----------
     if cmd in ("update", "new", "closed", "client") and len(tokens) > 1:
         raw_update = raw  # pass full original text

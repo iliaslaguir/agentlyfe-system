@@ -1060,11 +1060,33 @@ def run_scrape(config_path: str, niche: str, next_count: int = None, explicit_ci
 
     print(f"\nDone. Output file: {output_file}")
     if ab_export_file:
-        print(f"A/B Dropbox export: {ab_export_file}")
+        print(f"A/B export (full schema): {ab_export_file}")
+        share_export_file = Path(str(ab_export_file).replace("_ab.csv", "_share.csv"))
+        if share_export_file.exists():
+            print(f"Share file (lean):        {share_export_file}")
     print(f"A/B lead count exported: {len(ab_rows)}")
     print(f"Cities marked complete this run: {successful_cities}")
     print(f"Remaining cities for {niche}: {remaining}")
     print(f"Niche completed across all cities: {progress['niche_progress'][niche]['completed']}")
+
+    # Friendly "how do I look at this?" banner — non-technical users get lost
+    # at this point because they have a CSV path but no idea what to do next.
+    if ab_export_file and len(ab_rows) > 0:
+        try:
+            from _open import print_access_help
+            share_file = Path(str(ab_export_file).replace("_ab.csv", "_share.csv"))
+            preferred = share_file if share_file.exists() else ab_export_file
+            print()
+            print("─" * 60)
+            print("👉  TO VIEW YOUR LEADS")
+            print("─" * 60)
+            print_access_help(preferred)
+            print()
+            print("Or run any of these commands:")
+            print("  python3 scripts/ops_router.py leads        # open the leads folder")
+            print("  python3 scripts/ops_router.py leads latest # open the latest CSV")
+        except Exception:
+            pass
 
 
 def main():
