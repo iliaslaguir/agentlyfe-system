@@ -591,14 +591,18 @@ def generate_email(business_name: str, issue: str, has_website: bool, ads_data: 
         f"PITCH ANGLE: {ctx['pitch_angle'] or '(not specified)'}\n\n"
         "Style:\n"
         "- 3-4 sentences total.\n"
-        "- First line: `Subject: <subject>` — the subject must be about the OFFER, "
+        "- First line: 'Subject: <subject>'. Subject must be about the OFFER, "
         "  not about ads/website condition. Keep under 80 chars.\n"
         "- Body: one warm opener tied to the lead, one sentence on what we sell "
-        "  and why it fits THEM specifically, one sentence with the ask "
-        "  (15-min call / quick reply / etc.).\n"
+        "  and why it fits them specifically, one sentence with the ask "
+        "  (15-min call, quick reply, etc.).\n"
         "- No fluff, no markdown, no links, no emojis.\n"
-        "- End with a single sign-off line containing only `[YOUR NAME]` — "
-        "  the operator fills that in."
+        "- ABSOLUTELY NO em-dashes (—) or en-dashes (–) ANYWHERE. They're an "
+        "  AI tell. Use commas, periods, semicolons, parentheses, or the word "
+        "  'and' instead. Hyphens (-) inside compound words are fine.\n"
+        "- End with a single sign-off line containing only '[YOUR NAME]' — "
+        "  the operator fills that in (the previous sentence is an instruction "
+        "  to YOU, the dash there does not appear in the email)."
     )
 
     # Build the per-lead context block — every signal we have, but framed as
@@ -629,7 +633,13 @@ def generate_email(business_name: str, issue: str, has_website: bool, ads_data: 
         system=system_msg,
         messages=[{"role": "user", "content": prompt}]
     )
-    return message.content[0].text
+    text = message.content[0].text
+    # Belt-and-braces dash removal — Claude obeys the system instruction ~95%
+    # of the time, this catches the slips. Em/en dashes get replaced with a
+    # comma+space (closest natural punctuation in 99% of contexts).
+    text = text.replace(" — ", ", ").replace(" – ", ", ")
+    text = text.replace("—", ", ").replace("–", ", ")
+    return text
 
 
 def make_master_key(name: str, address: str) -> str:
