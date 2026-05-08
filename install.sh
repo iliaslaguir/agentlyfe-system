@@ -95,6 +95,21 @@ for arg in "$@"; do
   esac
 done
 
+# Persist the test-mode env var into a sourceable file inside the install dir,
+# so anything you run later (config_generator, scraper, etc.) in a NEW shell
+# can pick it up via `source .env-test` and stay in the test sandbox. Without
+# this, the moment install.sh exits the env var is lost and subsequent commands
+# fall back to the real ~/Dropbox/leads_ab path.
+write_env_test_file() {
+  if [ "$TEST_MODE" = "1" ]; then
+    cat > "$INSTALL_DIR/.env-test" <<-EOF
+		# Source this file before running any script in test mode:
+		#   source .env-test
+		export DROPBOX_AB_BASE_DIR="$DROPBOX_AB_BASE_DIR"
+	EOF
+  fi
+}
+
 # ── Logo banner ──────────────────────────────────────────────────────────────
 printf "\n"
 printf "%b" "$ORANGE"
@@ -158,6 +173,9 @@ echo "✅  Dependencies installed"
 # ── 5. Create required directories ────────────────────────────────────────────
 mkdir -p "$INSTALL_DIR/outputs" "$INSTALL_DIR/state" "$INSTALL_DIR/masters" "$INSTALL_DIR/inputs"
 echo "✅  Directory structure ready"
+
+# Drop the test-mode env file so later shells can re-enter the sandbox.
+write_env_test_file
 
 # ── 6. Setup wizard ───────────────────────────────────────────────────────────
 SECRETS_DIR="$INSTALL_DIR/configs/secrets"
@@ -378,6 +396,8 @@ echo ""
 echo "See README.md for the full command reference."
 echo ""
 if [ "$TEST_MODE" = "1" ]; then
-  printf "%bTEST MODE — clean up when done with:%b\n" "$AMBER" "$RESET"
+  printf "%b[TEST MODE]%b Before running scripts in a new shell, re-enter the sandbox:\n" "$AMBER" "$RESET"
+  printf "  cd %s && source .env-test\n\n" "$INSTALL_DIR"
+  printf "%b[TEST MODE]%b Clean up everything when done:\n" "$AMBER" "$RESET"
   printf "  rm -rf %s\n\n" "$INSTALL_DIR"
 fi
